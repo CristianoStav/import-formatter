@@ -36,15 +36,18 @@ export function activate(context: vscode.ExtensionContext) {
 				}  
 				
 				const concatedImports = concatImportLine(imports);
+				console.log("🚀 ~ file: extension.ts:39 ~ disposable ~ concatedImports:", concatedImports)
 
 				const sortedImports = concatedImports.sort((a,b) => a.length - b.length);
+				let arrayCounter = 0;
 
 				for (let i = firstLine; i <= lastLine; i++) {
 					const range = document.lineAt(i).range;
 
 					await editor.edit(editBuilder => {
-						editBuilder.replace(range, sortedImports[i - 1]);
+						editBuilder.replace(range, sortedImports[arrayCounter]);
 					});
+					arrayCounter += 1
 				}
 
 		vscode.window.showInformationMessage('imports formatados pelo import-formatter! 🥳');
