@@ -1,0 +1,57 @@
+{
+    "env": {
+        "es6": true
+    },
+    "extends": [
+        "standard-with-typescript"
+    ],
+    "parserOptions": {
+        "ecmaVersion": 2018,
+        "sourceType": "module"
+    },
+    "plugins": [
+        "import"
+    ],
+    "ignorePatterns": [
+        "dist"
+    ],
+    "rules": {
+        "no-console": "off",
+        "camelcase": [
+            0
+        ],
+        "indent": [
+            "error",
+            "tab"
+        ],
+        "no-tabs": [
+            "error",
+            {
+                "allowIndentationTabs": true
+            }
+        ],
+        "import/prefer-default-export": "off",
+        "no-underscore-dangle": "off",
+        "linebreak-style": [
+            "error",
+            "windows"
+        ],
+        "class-methods-use-this": "off",
+        "max-len": [
+            "error",
+            {
+                "code": 150,
+                "ignoreComments": true
+            }
+        ],
+        "spaced-comment": "off",
+        "func-names": "off",
+        "no-use-before-define": [
+            "error",
+            {
+                "functions": true,
+                "classes": true
+            }
+        ]
+    }
+}
