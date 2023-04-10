@@ -1,7 +1,7 @@
 {
   "name": "import-formatter",
   "publisher": "cristianostavarengo",
-  "icon": "",
+  "icon": "sort-icon.png",
   "displayName": "import-formatter",
   "description": "An extension to sort the imports by length",
   "version": "0.0.1",
@@ -18,11 +18,18 @@
   "contributes": {
     "commands": [
       {
-        "command": "import-formatter.helloWorld",
+        "command": "import-formatter.format",
         "title": "Import Formatter"
       }
     ]
   },
+  "repository": {
+    "url": "https://github.com/CristianoStav/import-formatter"
+  },
+  "bugs": {
+    "url": "https://github.com/CristianoStav/import-formatter/issues"
+  },
+  "license": "MIT",
   "scripts": {
     "vscode:prepublish": "npm run package",
     "compile": "webpack",
