@@ -1,81 +1,146 @@
-import * as _ from  'lodash';
-import * as vscode from 'vscode';
+import * as vscode from "vscode";
 
 export function activate(context: vscode.ExtensionContext) {
+  let disposable = vscode.commands.registerCommand(
+    "import-formatter.format",
+    async () => {
+      const editor = vscode.window.activeTextEditor;
 
-	let disposable = vscode.commands.registerCommand('import-formatter.format', async () => {
-		const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        return;
+      }
 
-		if (!editor) {
-			return;
-		}
-	
-		const document = editor.document;
+      const document = editor.document;
+      const text = document.getText();
+      const lines = text.split("\n");
 
-		const searchText = /^import\s/;
+      const importRegex = /^\s*import\s/;
+      const imports: string[] = [];
 
-        const text = editor.document.getText();
-        const lines = text.split('\n');
+      let firstImportLine = -1;
+      let lastImportLine = -1;
 
-        let firstLine = -1;
-        let lastLine = -1;
-
-        for (let i = 0; i < lines.length; i++) {
-            if (searchText.test(lines[i])) {
-                firstLine = firstLine === -1 ? i : firstLine;
-                lastLine = i;
-            } else if (firstLine !== -1 && lines[i + 1] && searchText.test(lines[i + 1])) {
-                // Handle multi-line imports
-                lastLine = i + 1;
-            }
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (importRegex.test(line)) {
+          if (firstImportLine === -1) firstImportLine = i;
+          lastImportLine = i;
         }
-				const imports: string[] = [];
-				
-				for (let i = firstLine; i <= lastLine; i++) {
-					imports.push(document.lineAt(i).text);
-				}  
-				
-				const concatedImports = concatImportLine(imports);
+      }
 
-				const sortedImports = concatedImports.sort((a,b) => a.length - b.length);
-				let arrayCounter = 0;
+      if (firstImportLine === -1 || lastImportLine === -1) {
+        vscode.window.showWarningMessage("Nenhum import encontrado.");
+        return;
+      }
 
-				for (let i = firstLine; i <= lastLine; i++) {
-					const range = document.lineAt(i).range;
+      for (let i = firstImportLine; i <= lastImportLine; i++) {
+        imports.push(lines[i]);
+      }
 
-					await editor.edit(editBuilder => {
-						editBuilder.replace(range, sortedImports[arrayCounter]);
-					});
-					arrayCounter += 1
-				}
+      const flattenedImports = flattenImports(imports);
 
-		vscode.window.showInformationMessage('imports formatados pelo import-formatter! 🥳');
-	});
+      const { externalImports, internalImports } =
+        separateImports(flattenedImports);
 
-	context.subscriptions.push(disposable);
+      const sortedExternal = externalImports.sort(
+        (a, b) => a.length - b.length
+      );
+      const sortedInternal = internalImports.sort(
+        (a, b) => a.length - b.length
+      );
+
+      const formattedExternal = formatLongImports(sortedExternal);
+      const formattedInternal = formatLongImports(sortedInternal);
+
+      const finalImports = [...formattedExternal, "", ...formattedInternal];
+
+      const start = new vscode.Position(firstImportLine, 0);
+      const end = new vscode.Position(lastImportLine + 1, 0);
+
+      await editor.edit((editBuilder) => {
+        editBuilder.replace(
+          new vscode.Range(start, end),
+          finalImports.join("\n") + "\n"
+        );
+      });
+
+      const message =
+        vscode.env.language === "pt-br"
+          ? "imports formatados pelo import-formatter! 🥳"
+          : "Imports formatted by import-formatter! 🥳";
+
+      vscode.window.showInformationMessage(message);
+    }
+  );
+
+  context.subscriptions.push(disposable);
 }
 
-interface Lines {
-	line: string;
-	linesCount: number;
+function flattenImports(lines: string[]): string[] {
+  const result: string[] = [];
+  let currentImport = "";
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("import") && trimmed.endsWith(";")) {
+      result.push(trimmed);
+    } else {
+      currentImport += " " + trimmed;
+      if (trimmed.endsWith(";")) {
+        result.push(currentImport.trim());
+        currentImport = "";
+      }
+    }
+  }
+
+  return result;
 }
 
-const concatImportLine = (lines: string[]): string[] => {
-	const returnedImports: string[] = [];
-	let auxString = '';
-	
-	lines.forEach((lin: string) => {
-			if(lin.startsWith('import') && lin.endsWith(';')){
-				returnedImports.push(lin);
-			} else if (lin.endsWith('{') || lin.endsWith(',')){
-				auxString += lin.trim();
-			} else if (lin.endsWith(';')) {
-				auxString += lin.trim();
-				returnedImports.push(auxString);
-			}
-	})
+function separateImports(imports: string[]) {
+  const externalImports: string[] = [];
+  const internalImports: string[] = [];
 
-	return returnedImports;
+  for (const imp of imports) {
+    const match = imp.match(/from\s+['"](.*)['"]/);
+    if (match) {
+      const importPath = match[1];
+      if (importPath.startsWith(".") || importPath.startsWith("src")) {
+        internalImports.push(imp);
+      } else {
+        externalImports.push(imp);
+      }
+    }
+  }
+
+  return { externalImports, internalImports };
+}
+
+function formatLongImports(
+  imports: string[],
+  maxLength: number = 100
+): string[] {
+  return imports.map((imp) => {
+    if (imp.length <= maxLength) {
+      return imp;
+    }
+
+    const match = imp.match(/import\s+{([^}]*)}\s+from\s+['"](.*)['"]/);
+    if (!match) {
+      return imp;
+    }
+
+    const importsInside = match[1]
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const fromPath = match[2];
+
+    const newImport = `import {\n  ${importsInside.join(
+      ",\n  "
+    )}\n} from "${fromPath}";`;
+    return newImport;
+  });
 }
 
 export function deactivate() {}
